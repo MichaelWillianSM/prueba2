@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sorprise</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 90%;
+    }
+
+    .phrase-display {
+      font-size: 24px;
+      letter-spacing: 5px;
+      margin-bottom: 20px;
+    }
+
+    .keyboard {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .key {
+      padding: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 40px;
+      text-align: center;
+    }
+
+    .key:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #message {
+      font-weight: bold;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SORPRISE</h1>
+    <div id="phraseDisplay" class="phrase-display"></div>
+    <div id="keyboard" class="keyboard"></div>
+    <p id="message"></p>
+    <p id="remainingAttempts"></p>
+  </div>
+  <script>
+    
+
+    const correctPhrase = "Brayan Josue Mellado Perez a las 12:00 pm del dia 16 de febrero de 2025 es un buen momento para comer papitas ¿Me las invitas?";
+
+    const progressKey = "hangmanProgressNewRule";
+    const maxCorrectAttemptsPerDay = 2;
+    let guessedLetters = new Set();
+    let correctAttemptsToday = 0;
+
+    function loadProgress() {
+      const progress = JSON.parse(localStorage.getItem(progressKey));
+      if (progress) {
+        const today = new Date().toISOString().split("T")[0];
+        if (progress.lastPlayDate === today) {
+          guessedLetters = new Set(progress.guessedLetters);
+          correctAttemptsToday = progress.correctAttemptsToday;
+        } else {
+          // Nuevo día: resetear intentos correctos pero conservar letras adivinadas
+          guessedLetters = new Set(progress.guessedLetters);
+          correctAttemptsToday = 0;
+        }
+      }
+    }
+
+    function saveProgress() {
+      const progress = {
+        guessedLetters: Array.from(guessedLetters),
+        correctAttemptsToday,
+        lastPlayDate: new Date().toISOString().split("T")[0],
+      };
+      localStorage.setItem(progressKey, JSON.stringify(progress));
+    }
+
+    const phraseDisplay = document.getElementById("phraseDisplay");
+    const keyboard = document.getElementById("keyboard");
+    const messageElement = document.getElementById("message");
+    const remainingAttemptsElement = document.getElementById("remainingAttempts");
+
+    function updateDisplayedPhrase() {
+      const displayedPhrase = correctPhrase
+        .split("")
+        .map((char) => (guessedLetters.has(char) ? char : char === " " ? " " : "_"))
+        .join("");
+      phraseDisplay.textContent = displayedPhrase;
+      return displayedPhrase;
+    }
+
+    function updateRemainingAttempts() {
+      remainingAttemptsElement.textContent = `Letras correctas permitidas hoy: ${maxCorrectAttemptsPerDay - correctAttemptsToday}`;
+    }
+
+    function disableKeyboard() {
+      Array.from(keyboard.children).forEach((button) => {
+        button.disabled = true;
+      });
+    }
+
+    function handleKeyClick(key) {
+      if (correctAttemptsToday >= maxCorrectAttemptsPerDay) return;
+
+      if (!guessedLetters.has(key)) {
+        guessedLetters.add(key);
+
+        const displayedPhrase = updateDisplayedPhrase();
+        if (correctPhrase.includes(key)) {
+          correctAttemptsToday++;
+          if (correctAttemptsToday >= maxCorrectAttemptsPerDay) {
+            messageElement.textContent = "¡Ya alcanzaste el límite de letras correctas para hoy!";
+            messageElement.style.color = "green";
+            disableKeyboard();
+          } else if (displayedPhrase === correctPhrase) {
+            messageElement.textContent = "¡Correcto! Has completado la frase.";
+            messageElement.style.color = "green";
+            disableKeyboard();
+          }
+        }
+        updateRemainingAttempts();
+        saveProgress();
+      }
+    }
+
+    function initializeGame() {
+      loadProgress();
+      updateDisplayedPhrase();
+      updateRemainingAttempts();
+
+      if (correctAttemptsToday >= maxCorrectAttemptsPerDay) {
+        messageElement.textContent = "¡Ya alcanzaste el límite de letras correctas para hoy!";
+        messageElement.style.color = "green";
+        disableKeyboard();
+      }
+
+      guessedLetters.forEach((key) => {
+        Array.from(keyboard.children).forEach((button) => {
+          if (button.textContent === key) button.disabled = true;
+        });
+      });
+    }
+
+    const keys = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,¿?¡!:'";
+    keys.split("").forEach((key) => {
+      const button = document.createElement("button");
+      button.textContent = key;
+      button.classList.add("key");
+      button.addEventListener("click", () => handleKeyClick(key));
+      keyboard.appendChild(button);
+    });
+
+    initializeGame();
+  </script>
+</body>
+</html>
